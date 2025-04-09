@@ -14,7 +14,7 @@ import (
 func InitDB() (*sql.DB, error) {
 	dbPath := os.Getenv("DB_PATH")
 	if dbPath == "" {
-		dbPath = "sim.db" // Default fallback for local dev
+		dbPath = "sim.db"
 	}
 
 	absPath, _ := filepath.Abs(dbPath)
@@ -26,6 +26,12 @@ func InitDB() (*sql.DB, error) {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
 
+	if _, err := db.Exec(`PRAGMA journal_mode = WAL;`); err != nil {
+		log.Println("Failed to set journal_mode=WAL:", err)
+	} else {
+		log.Println("WAL mode enabled")
+	}
+
 	// Configure PRAGMA settings
 	if _, err = db.Exec(`PRAGMA busy_timeout = 5000;`); err != nil {
 		return nil, fmt.Errorf("failed to set busy_timeout: %w", err)
@@ -34,12 +40,13 @@ func InitDB() (*sql.DB, error) {
 	// Table creation SQLs
 	tables := []string{
 		`CREATE TABLE IF NOT EXISTS alerts (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-			severity TEXT NOT NULL CHECK(severity IN ('low', 'medium', 'high', 'critical')),
-			message TEXT NOT NULL,
-			source_ip TEXT
-		);`,
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+	severity TEXT NOT NULL CHECK(severity IN ('low', 'medium', 'high', 'critical')),
+	message TEXT NOT NULL,
+	source_ip TEXT,
+	status TEXT DEFAULT 'not_defended'
+       );`,
 		`CREATE TABLE IF NOT EXISTS logs (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -53,6 +60,26 @@ func InitDB() (*sql.DB, error) {
 			password_hash TEXT NOT NULL,
 			role TEXT DEFAULT 'viewer' CHECK(role IN ('admin', 'editor', 'viewer'))
 		);`,
+		`CREATE TABLE IF NOT EXISTS stego_images (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			alert_id INTEGER NOT NULL,
+			filename TEXT NOT NULL,
+			image_data BLOB,  -- Optional: only include if storing actual images
+			upload_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			FOREIGN KEY(alert_id) REFERENCES alerts(id) ON DELETE CASCADE
+		);`,
+		`CREATE TABLE IF NOT EXISTS blocked_ips (
+    ip_address TEXT PRIMARY KEY,
+    reason TEXT NOT NULL,
+    blocked_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);`,
+		`CREATE TABLE IF NOT EXISTS malicious_files (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    alert_id INTEGER NOT NULL,
+    filename TEXT NOT NULL,
+    file_data BLOB NOT NULL,
+    FOREIGN KEY(alert_id) REFERENCES alerts(id)
+);`,
 	}
 
 	for _, stmt := range tables {
@@ -63,7 +90,6 @@ func InitDB() (*sql.DB, error) {
 
 	log.Println("Tables created successfully.")
 
-	// List tables found in the DB for verification
 	rows, err := db.Query("SELECT name FROM sqlite_master WHERE type='table'")
 	if err != nil {
 		log.Println("Could not query tables:", err)
