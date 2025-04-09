@@ -40,7 +40,7 @@ func main() {
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
-// Enable CORS for cross-origin requests from frontend
+// CORS for cross-origin requests from frontend
 func enableCORS(w *http.ResponseWriter, r *http.Request) {
 	(*w).Header().Set("Access-Control-Allow-Origin", "*") // Or restrict to http://localhost:3000
 	(*w).Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
@@ -52,7 +52,7 @@ func enableCORS(w *http.ResponseWriter, r *http.Request) {
 
 func getLatestAlerts(db *sql.DB) []models.Alert {
 	var alerts []models.Alert
-	rows, err := db.Query(`SELECT id, timestamp, severity, message, source_ip FROM alerts ORDER BY timestamp DESC LIMIT 10`)
+	rows, err := db.Query(`SELECT id, timestamp, severity, message, source_ip, status FROM alerts ORDER BY timestamp DESC`)
 	if err != nil {
 		log.Println("Query alerts error:", err)
 		return alerts
@@ -61,7 +61,7 @@ func getLatestAlerts(db *sql.DB) []models.Alert {
 
 	for rows.Next() {
 		var a models.Alert
-		if err := rows.Scan(&a.ID, &a.Timestamp, &a.Severity, &a.Message, &a.SourceIP); err != nil {
+		if err := rows.Scan(&a.ID, &a.Timestamp, &a.Severity, &a.Message, &a.SourceIP, &a.Status); err != nil {
 			log.Println("Scan alert error:", err)
 			continue
 		}
@@ -72,7 +72,7 @@ func getLatestAlerts(db *sql.DB) []models.Alert {
 
 func getLatestLogs(db *sql.DB) []models.Log {
 	var logs []models.Log
-	rows, err := db.Query(`SELECT id, timestamp, source_ip, action, description FROM logs ORDER BY timestamp DESC LIMIT 10`)
+	rows, err := db.Query(`SELECT id, timestamp, source_ip, action, description FROM logs ORDER BY timestamp DESC`)
 	if err != nil {
 		log.Println("Query logs error:", err)
 		return logs

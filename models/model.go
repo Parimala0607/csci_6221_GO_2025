@@ -6,6 +6,7 @@ type Alert struct {
 	Severity  string
 	Message   string
 	SourceIP  string
+	Status    string
 }
 
 type Log struct {
@@ -21,4 +22,10 @@ type User struct {
 	Username     string
 	PasswordHash string
 	Role         string
+}
+
+type BlockedIP struct {
+	IPAddress string `json:"ip_address"`
+	Reason    string `json:"reason"`
+	Timestamp string `json:"blocked_at"`
 }
