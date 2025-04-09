@@ -7,8 +7,10 @@ services:
       - simdata:/data
     environment:
       - DB_PATH=/data/sim.db
+      - BLUE_TEAM_URL=http://blue:8081
     ports:
       - "8082:8082"
+  
 
   blue:
     build:
@@ -20,6 +22,7 @@ services:
       - DB_PATH=/data/sim.db
     ports:
       - "8081:8081"
+      
 
   dashboard:
     build:
